@@ -2,7 +2,18 @@ from numpy.random import multinomial
 from numpy import log, exp
 from numpy import argmax
 import numpy as np
-import json
+
+
+def _sample(p):
+    '''
+    Sample with probability vector p from a multinomial distribution
+    :param p: list
+        List of probabilities representing probability vector for the multinomial distribution
+    :return: int
+        index of randomly selected output
+    '''
+    return [i for i, entry in enumerate(multinomial(1, p)) if entry != 0][0]
+
 
 class MovieGroupProcess:
     def __init__(self, K=8, alpha=0.1, beta=0.1, n_iters=30):
@@ -65,17 +76,6 @@ class MovieGroupProcess:
         mgp.cluster_word_distribution = cluster_word_distribution
         return mgp
 
-    @staticmethod
-    def _sample(p):
-        '''
-        Sample with probability vector p from a multinomial distribution
-        :param p: list
-            List of probabilities representing probability vector for the multinomial distribution
-        :return: int
-            index of randomly selected output
-        '''
-        return [i for i, entry in enumerate(multinomial(1, p)) if entry != 0][0]
-
     def fit(self, docs, vocab_size, callback=None):
         '''
         Cluster the input documents
@@ -126,7 +126,7 @@ class MovieGroupProcess:
 
                 # draw sample from distribution to find new cluster
                 p = self.score(doc)
-                z_new = self._sample(p)
+                z_new = _sample(p)
 
                 # transfer doc to the new cluster
                 if z_new != z_old:
@@ -178,10 +178,8 @@ class MovieGroupProcess:
         lD2 = np.squeeze(lD2)
         lD2 = log(lD2 + n_z + (V * beta))
 
-        lN2 = np.zeros(shape=(K,))
         tmp = n_z_w[:, doc]
-        for label in range(K):
-            lN2[label] = np.sum(log(tmp[label] + beta))
+        lN2 = np.sum(log(tmp + beta), axis=1)
 
         p = lN1 - lD1 + lN2 - np.sum(lD2, axis=0)
         p -= np.max(p)
